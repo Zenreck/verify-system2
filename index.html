@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>SaaS Enterprise System</title>
+  <title>SaaS Chat System</title>
 
   <style>
     body {
       margin: 0;
       font-family: Arial;
       background: black;
-      overflow: hidden;
       color: white;
+      overflow: hidden;
     }
 
     canvas {
@@ -29,7 +29,7 @@
 
     .card {
       background: rgba(30,30,30,0.92);
-      padding: 25px;
+      padding: 20px;
       border-radius: 14px;
       width: 340px;
       text-align: center;
@@ -39,7 +39,7 @@
     input {
       width: 90%;
       padding: 10px;
-      margin: 8px 0;
+      margin: 6px 0;
       border-radius: 8px;
       border: none;
       background: #111;
@@ -50,8 +50,8 @@
       width: 100%;
       padding: 10px;
       margin-top: 8px;
-      border: none;
       border-radius: 8px;
+      border: none;
       background: #3b82f6;
       color: white;
       cursor: pointer;
@@ -72,29 +72,31 @@
       height: 100vh;
       position: fixed;
       background: rgba(20,20,20,0.9);
-      padding: 15px;
+      padding: 10px;
     }
 
     .main {
       margin-left: 240px;
-      padding: 20px;
+      padding: 15px;
     }
 
     .panel {
       background: rgba(40,40,40,0.6);
-      padding: 15px;
-      border-radius: 12px;
+      padding: 12px;
+      border-radius: 10px;
       margin-bottom: 10px;
     }
 
-    .badge {
-      padding: 4px 8px;
-      background: #3b82f6;
-      border-radius: 6px;
-      font-size: 12px;
-    }
-
     .hidden { display:none; }
+
+    #chatBox, #adminChat {
+      height: 150px;
+      overflow-y: auto;
+      background: #111;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
   </style>
 </head>
 
@@ -107,7 +109,7 @@
   <div class="card">
     <h2>SAAS LOGIN</h2>
 
-    <input id="phone" placeholder="Phone (+1...)" />
+    <input id="phone" placeholder="Phone number" />
 
     <button onclick="sendCode()">Send Code</button>
 
@@ -128,32 +130,33 @@
   <div class="sidebar">
     <h3>Dashboard</h3>
 
-    <p>User: <span id="userPhone"></span></p>
-    <p>Role: <span id="role"></span></p>
+    <p><b>User:</b> <span id="userPhone"></span></p>
+    <p><b>Role:</b> <span id="role"></span></p>
 
     <button onclick="logout()" style="background:#ef4444;">Logout</button>
   </div>
 
   <div class="main">
 
-    <!-- USER PANEL -->
+    <!-- USER CHAT -->
     <div class="panel">
-      <h2>User Profile</h2>
-      <p>Status: Active</p>
+      <h3>💬 Support Chat</h3>
+      <div id="chatBox"></div>
+
+      <input id="chatInput" placeholder="Message admin..." />
+      <button onclick="sendMessage()">Send</button>
     </div>
 
-    <!-- ANALYTICS PANEL -->
-    <div id="analyticsPanel" class="panel hidden">
-      <h2>📊 Analytics Dashboard</h2>
+    <!-- ADMIN PANEL -->
+    <div id="adminPanel" class="panel hidden">
+      <h3>👑 Admin Panel</h3>
 
-      <p><b>Total Logs:</b> <span id="total">0</span></p>
-      <p><b>Unique Users:</b> <span id="unique">0</span></p>
-      <p><b>Admin Logins:</b> <span id="admins">0</span></p>
+      <div id="userList"></div>
 
-      <div class="panel">
-        <h3>Recent Activity</h3>
-        <div id="activity"></div>
-      </div>
+      <div id="adminChat"></div>
+
+      <input id="adminMsg" placeholder="Reply..." />
+      <button onclick="sendAdminMessage()">Send</button>
     </div>
 
   </div>
@@ -162,9 +165,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
 <script>
-/* =========================
-   SUPABASE
-========================= */
 const supabaseUrl = "https://emookzuveekpfqbehcjs.supabase.co";
 const supabaseKey = "sb_publishable_XUZwKSJb_dsiYTkeEK79yw_lpCW5u9p";
 const client = supabase.createClient(supabaseUrl, supabaseKey);
@@ -172,48 +172,26 @@ const client = supabase.createClient(supabaseUrl, supabaseKey);
 /* =========================
    STATE
 ========================= */
-let code = "";
 let phone = "";
 let role = "user";
+let code = "";
+let activeUser = null;
 
 /* =========================
-   SESSION
+   LOGIN SYSTEM
 ========================= */
-function setSession(data) {
-  localStorage.setItem("session", JSON.stringify(data));
+function adminLogin() {
+  phone = "3502287887";
+  role = "admin";
+  sendCode();
 }
 
-function getSession() {
-  return JSON.parse(localStorage.getItem("session"));
-}
-
-function clearSession() {
-  localStorage.removeItem("session");
-}
-
-/* =========================
-   IP FETCH
-========================= */
-async function getIP() {
-  const res = await fetch("https://api.ipify.org?format=json");
-  const data = await res.json();
-  return data.ip;
-}
-
-/* =========================
-   SEND CODE
-========================= */
 async function sendCode() {
-
-  if (!phone) {
-    phone = document.getElementById("phone").value;
-  }
+  phone = document.getElementById("phone").value || phone;
 
   if (!phone) return msg("Enter phone");
 
   code = Math.floor(100000 + Math.random() * 900000).toString();
-
-  msg("Sending...");
 
   await fetch(
     "https://api.textbee.dev/api/v1/gateway/devices/69ed9e62b5cd3ce4c792ae3e/send-sms",
@@ -234,41 +212,14 @@ async function sendCode() {
   msg("Code sent");
 }
 
-/* =========================
-   ADMIN LOGIN
-========================= */
-function adminLogin() {
-  phone = "3502287887";
-  role = "admin";
-  sendCode();
-}
-
-/* =========================
-   VERIFY + ANALYTICS LOG
-========================= */
 async function verify() {
   const input = document.getElementById("code").value;
-
   if (input !== code) return msg("Wrong code");
 
-  const session = crypto.randomUUID();
-  const ip = await getIP();
-  const ua = navigator.userAgent;
-
-  setSession({ phone, role, session });
-
-  await client.from("users").upsert({
+  const { data } = await client.from("users").upsert({
     phone,
     role,
-    verified: true,
-    session
-  });
-
-  await client.from("analytics").insert({
-    phone,
-    ip,
-    user_agent: ua,
-    role
+    verified: true
   });
 
   openApp();
@@ -282,67 +233,111 @@ function openApp() {
   document.getElementById("app").style.display = "block";
 
   document.getElementById("userPhone").innerText = phone;
-  document.getElementById("role").innerText = role.toUpperCase();
+  document.getElementById("role").innerText = role;
 
   if (role === "admin") {
-    document.getElementById("analyticsPanel").classList.remove("hidden");
-    loadAnalytics();
+    document.getElementById("adminPanel").classList.remove("hidden");
+    loadUsers();
   }
+
+  loadChat();
 }
 
 /* =========================
-   LOAD ANALYTICS (ADMIN)
+   CHAT SYSTEM (USER)
 ========================= */
-async function loadAnalytics() {
-  const { data } = await client
-    .from("analytics")
-    .select("*")
-    .order("created_at", { ascending: false });
+async function sendMessage() {
+  const msg = document.getElementById("chatInput").value;
+  if (!msg) return;
 
-  document.getElementById("total").innerText = data.length;
-
-  const unique = new Set(data.map(d => d.phone));
-  document.getElementById("unique").innerText = unique.size;
-
-  const admins = data.filter(d => d.role === "admin");
-  document.getElementById("admins").innerText = admins.length;
-
-  const list = document.getElementById("activity");
-  list.innerHTML = "";
-
-  data.slice(0, 10).forEach(d => {
-    const div = document.createElement("div");
-    div.style.padding = "6px";
-    div.style.borderBottom = "1px solid #333";
-
-    div.innerHTML = `
-      📱 ${d.phone}<br>
-      🌍 ${d.ip}<br>
-      🧠 ${d.role}<br>
-      ⏰ ${new Date(d.created_at).toLocaleString()}
-    `;
-
-    list.appendChild(div);
+  await client.from("messages").insert({
+    phone,
+    sender: "user",
+    message: msg
   });
+
+  document.getElementById("chatInput").value = "";
+  loadChat();
+}
+
+async function loadChat() {
+  const { data } = await client
+    .from("messages")
+    .select("*")
+    .eq("phone", phone)
+    .order("created_at", { ascending: true });
+
+  const box = document.getElementById("chatBox");
+  box.innerHTML = "";
+
+  data.forEach(m => {
+    box.innerHTML += `<div><b>${m.sender}:</b> ${m.message}</div>`;
+  });
+}
+
+/* =========================
+   ADMIN CHAT SYSTEM
+========================= */
+async function loadUsers() {
+  const { data } = await client.from("messages").select("phone");
+
+  const unique = [...new Set(data.map(d => d.phone))];
+
+  const list = document.getElementById("userList");
+  list.innerHTML = "<h4>Users</h4>";
+
+  unique.forEach(p => {
+    const btn = document.createElement("button");
+    btn.innerText = p;
+    btn.onclick = () => openAdminChat(p);
+    list.appendChild(btn);
+  });
+}
+
+async function openAdminChat(userPhone) {
+  activeUser = userPhone;
+
+  const { data } = await client
+    .from("messages")
+    .select("*")
+    .eq("phone", userPhone)
+    .order("created_at", { ascending: true });
+
+  const box = document.getElementById("adminChat");
+  box.innerHTML = "";
+
+  data.forEach(m => {
+    box.innerHTML += `<div><b>${m.sender}:</b> ${m.message}</div>`;
+  });
+}
+
+async function sendAdminMessage() {
+  const msg = document.getElementById("adminMsg").value;
+  if (!msg || !activeUser) return;
+
+  await client.from("messages").insert({
+    phone: activeUser,
+    sender: "admin",
+    message: msg
+  });
+
+  document.getElementById("adminMsg").value = "";
+  openAdminChat(activeUser);
 }
 
 /* =========================
    LOGOUT
 ========================= */
 function logout() {
-  clearSession();
   location.reload();
 }
 
-/* =========================
-   MSG
-========================= */
 function msg(t) {
   document.getElementById("msg").innerText = t;
 }
 
 /* =========================
-   MATRIX
+   MATRIX BG
 ========================= */
 const c = document.getElementById("matrix");
 const ctx = c.getContext("2d");
@@ -361,7 +356,6 @@ setInterval(() => {
 
   for (let i = 0; i < drops.length; i++) {
     ctx.fillText(Math.random() > 0.5 ? "0" : "1", i*14, drops[i]*14);
-
     if (drops[i]*14 > c.height) drops[i] = 0;
     drops[i]++;
   }
