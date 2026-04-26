@@ -82,7 +82,7 @@
 
 <script>
 /* =========================
-   🔐 SUPABASE SETUP
+   🔐 SUPABASE
 ========================= */
 const supabaseUrl = "https://emookzuveekpfqbehcjs.supabase.co";
 const supabaseKey = "sb_publishable_XUZwKSJb_dsiYTkeEK79yw_lpCW5u9p";
@@ -96,7 +96,7 @@ let generatedCode = "";
 let currentPhone = "";
 
 /* =========================
-   🚀 SEND CODE (DEBUG SMS)
+   🚀 SEND SMS CODE (TEXTBEE FIXED)
 ========================= */
 async function sendCode() {
   const phone = document.getElementById("phone").value;
@@ -113,40 +113,37 @@ async function sendCode() {
   document.getElementById("msg").innerText = "📲 Sending SMS...";
 
   try {
-    const res = await fetch("https://api.textbee.dev/sms/send", {
+    const res = await fetch("https://api.textbee.dev/api/v1/sms/send", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": "Bearer 33a89932-1944-4e37-8c09-c58b18136575"
       },
       body: JSON.stringify({
+        device_id: "69ed9e62b5cd3ce4c792ae3e",
         to: phone,
-        message: `Your login code is: ${generatedCode}`
+        message: "Your login code is: " + generatedCode
       })
     });
 
-    // 🔥 IMPORTANT: show real response
     const text = await res.text();
     console.log("TEXTBEE RESPONSE:", text);
 
     if (!res.ok) {
-      document.getElementById("msg").innerText =
-        "❌ SMS failed: " + text;
+      document.getElementById("msg").innerText = "❌ SMS failed: " + text;
       return;
     }
 
     document.getElementById("msg").innerText = "✅ Code sent!";
     document.getElementById("verifyBox").classList.remove("hidden");
 
-    // save user in Supabase
     await client.from("users").upsert([
       { phone: phone, verified: false }
     ]);
 
   } catch (err) {
     console.error(err);
-    document.getElementById("msg").innerText =
-      "❌ Network error sending SMS";
+    document.getElementById("msg").innerText = "❌ Network error";
   }
 }
 
