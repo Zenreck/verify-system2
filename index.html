@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Verification System</title>
+</head>
+<body style="font-family: Arial; text-align: center; margin-top: 100px;">
+
+<h1>Verification System 😎</h1>
+
+<button onclick="generate()">Get Code</button>
+
+<p id="code"></p>
+
+<input id="input" placeholder="Enter code" />
+<button onclick="check()">Verify</button>
+
+<p id="result"></p>
+
+<script>
+let code = "";
+
+function generate() {
+    code = Math.floor(100000 + Math.random() * 900000).toString();
+    document.getElementById("code").innerText = "Code: " + code;
+}
+
+function check() {
+    const val = document.getElementById("input").value;
+
+    if (val === code) {
+        document.getElementById("result").innerText = "✅ Verified!";
+    } else {
+        document.getElementById("result").innerText = "❌ Wrong code";
+    }
+}
+</script>
+
+</body>
+</html>
