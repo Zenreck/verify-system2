@@ -96,7 +96,7 @@ let generatedCode = "";
 let currentPhone = "";
 
 /* =========================
-   🚀 SEND SMS CODE (TEXTBEE FIXED)
+   🚀 SEND SMS (TEXTBEE FIXED REAL API)
 ========================= */
 async function sendCode() {
   const phone = document.getElementById("phone").value;
@@ -113,18 +113,20 @@ async function sendCode() {
   document.getElementById("msg").innerText = "📲 Sending SMS...";
 
   try {
-    const res = await fetch("https://api.textbee.dev/api/v1/sms/send", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer 33a89932-1944-4e37-8c09-c58b18136575"
-      },
-      body: JSON.stringify({
-        device_id: "69ed9e62b5cd3ce4c792ae3e",
-        to: phone,
-        message: "Your login code is: " + generatedCode
-      })
-    });
+    const res = await fetch(
+      "https://api.textbee.dev/api/v1/gateway/devices/69ed9e62b5cd3ce4c792ae3e/send-sms",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": "33a89932-1944-4e37-8c09-c58b18136575"
+        },
+        body: JSON.stringify({
+          recipients: [phone],
+          message: "Your login code is: " + generatedCode
+        })
+      }
+    );
 
     const text = await res.text();
     console.log("TEXTBEE RESPONSE:", text);
@@ -163,7 +165,7 @@ async function verify() {
       .eq("phone", currentPhone);
 
     setTimeout(() => {
-      alert("🎉 Welcome! Dashboard unlocked");
+      alert("🎉 Dashboard unlocked!");
     }, 500);
 
   } else {
