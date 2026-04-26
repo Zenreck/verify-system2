@@ -1,47 +1,16 @@
-export default function handler(req, res) {
-    if (req.query.action === "generate") {
-        const code = Math.floor(100000 + Math.random() * 900000);
-        return res.status(200).json({ code });
-    }
+import random
 
-    res.setHeader("Content-Type", "text/html");
-    res.status(200).send(`
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Verify System</title>
-</head>
-<body style="font-family: Arial; text-align: center; margin-top: 100px;">
-    <h1>Verification System 😎</h1>
+print("🔥 Verification System")
 
-    <button onclick="getCode()">Get Code</button>
-    <input id="input" placeholder="Enter code" />
-    <button onclick="check()">Verify</button>
+# generate code
+code = str(random.randint(100000, 999999))
 
-    <p id="output"></p>
+print("Your code is:", code)
 
-    <script>
-        let currentCode = "";
+# user input
+user = input("Enter code: ")
 
-        async function getCode() {
-            const res = await fetch("?action=generate");
-            const data = await res.json();
-            currentCode = data.code;
-            console.log("CODE:", currentCode);
-            document.getElementById("output").innerText = "Code generated (check console)";
-        }
-
-        function check() {
-            const val = document.getElementById("input").value;
-
-            if (val === currentCode.toString()) {
-                document.getElementById("output").innerText = "✅ Verified!";
-            } else {
-                document.getElementById("output").innerText = "❌ Wrong code";
-            }
-        }
-    </script>
-</body>
-</html>
-    `);
-}
+if user == code:
+    print("✅ Verified!")
+else:
+    print("❌ Wrong code")
