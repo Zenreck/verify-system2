@@ -6,10 +6,9 @@
   <style>
     body {
       margin: 0;
-      font-family: monospace;
-      color: #00ff88;
-      background: black;
+      font-family: Arial;
       overflow: hidden;
+      background: black;
     }
 
     canvas {
@@ -19,6 +18,7 @@
       z-index: -1;
     }
 
+    /* CENTER LOGIN */
     .center {
       display: flex;
       justify-content: center;
@@ -26,61 +26,77 @@
       height: 100vh;
     }
 
+    /* LOGIN CARD (modern dark glass) */
     .card {
-      background: rgba(0,0,0,0.8);
-      border: 1px solid #00ff88;
+      background: rgba(30, 30, 30, 0.9);
+      backdrop-filter: blur(10px);
       padding: 25px;
-      border-radius: 10px;
+      border-radius: 14px;
       width: 320px;
       text-align: center;
-      box-shadow: 0 0 20px #00ff88;
+      color: white;
+      box-shadow: 0 0 20px rgba(0,0,0,0.6);
     }
 
     input {
       width: 90%;
       padding: 10px;
       margin: 8px 0;
-      background: black;
-      border: 1px solid #00ff88;
-      color: #00ff88;
+      border-radius: 8px;
+      border: none;
       outline: none;
+      background: #111;
+      color: white;
     }
 
     button {
       width: 100%;
       padding: 10px;
       margin-top: 8px;
-      background: black;
-      border: 1px solid #00ff88;
-      color: #00ff88;
+      border: none;
+      border-radius: 8px;
+      background: #3b82f6;
+      color: white;
       cursor: pointer;
     }
 
     button:hover {
-      background: #00ff88;
-      color: black;
+      background: #2563eb;
     }
 
-    .hidden { display: none; }
-
-    .glitch {
-      font-size: 18px;
-      animation: flicker 1s infinite;
+    /* DASHBOARD OVERLAY */
+    .dashboard {
+      position: fixed;
+      inset: 0;
+      display: none;
+      justify-content: center;
+      align-items: center;
     }
 
-    @keyframes flicker {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
-    }
-
-    .dash {
-      padding: 20px;
+    .panel {
+      width: 420px;
+      background: rgba(40, 40, 40, 0.85);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      padding: 25px;
+      color: white;
+      box-shadow: 0 0 30px rgba(0,0,0,0.7);
     }
 
     .profile {
-      border: 1px solid #00ff88;
+      background: rgba(60,60,60,0.4);
       padding: 15px;
+      border-radius: 10px;
       margin-top: 10px;
+    }
+
+    .logout {
+      margin-top: 15px;
+      background: #ef4444;
+    }
+
+    .hidden {
+      display: none;
     }
   </style>
 </head>
@@ -92,31 +108,33 @@
 <!-- LOGIN -->
 <div id="loginPage" class="center">
   <div class="card">
-    <div class="glitch">SYSTEM LOGIN</div>
+    <h2>Login</h2>
 
     <input id="phone" placeholder="Phone (+1...)" />
 
-    <button onclick="sendCode()">SEND CODE</button>
+    <button onclick="sendCode()">Send Code</button>
 
     <div id="verifyBox" class="hidden">
-      <input id="code" placeholder="ENTER CODE" />
-      <button onclick="verify()">VERIFY</button>
+      <input id="code" placeholder="Enter code" />
+      <button onclick="verify()">Verify</button>
     </div>
 
     <p id="msg"></p>
   </div>
 </div>
 
-<!-- DASHBOARD -->
-<div id="dashboard" class="hidden dash">
-  <h2>WELCOME USER</h2>
+<!-- DASHBOARD OVERLAY -->
+<div id="dashboard" class="dashboard">
+  <div class="panel">
+    <h2>Dashboard</h2>
 
-  <div class="profile">
-    <p><b>Phone:</b> <span id="userPhone"></span></p>
-    <p><b>Status:</b> VERIFIED</p>
+    <div class="profile">
+      <p><b>Phone:</b> <span id="userPhone"></span></p>
+      <p><b>Status:</b> Online</p>
+    </div>
+
+    <button class="logout" onclick="logout()">Logout</button>
   </div>
-
-  <button onclick="logout()">LOGOUT</button>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
@@ -136,28 +154,26 @@ let code = "";
 let phone = "";
 
 /* =========================
-   SESSION (PERSIST LOGIN)
+   SESSION (LOCAL STORAGE)
 ========================= */
-function saveSession(phone) {
-  localStorage.setItem("session_phone", phone);
+function saveSession(p) {
+  localStorage.setItem("session", p);
 }
 
-function loadSession() {
-  return localStorage.getItem("session_phone");
+function getSession() {
+  return localStorage.getItem("session");
 }
 
 function clearSession() {
-  localStorage.removeItem("session_phone");
+  localStorage.removeItem("session");
 }
 
 /* =========================
-   LOGIN CHECK ON LOAD
+   AUTO LOGIN CHECK
 ========================= */
 window.onload = () => {
-  const saved = loadSession();
-  if (saved) {
-    showDashboard(saved);
-  }
+  const s = getSession();
+  if (s) showDashboard(s);
 };
 
 /* =========================
@@ -166,36 +182,35 @@ window.onload = () => {
 async function sendCode() {
   phone = document.getElementById("phone").value;
 
-  if (!phone) {
-    msg("ENTER PHONE");
-    return;
-  }
+  if (!phone) return msg("Enter phone");
 
   code = Math.floor(100000 + Math.random() * 900000).toString();
 
-  msg("SENDING CODE...");
+  msg("Sending...");
 
-  const res = await fetch("https://api.textbee.dev/api/v1/gateway/devices/69ed9e62b5cd3ce4c792ae3e/send-sms", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": "33a89932-1944-4e37-8c09-c58b18136575"
-    },
-    body: JSON.stringify({
-      recipients: [phone],
-      message: "CODE: " + code
-    })
-  });
+  const res = await fetch(
+    "https://api.textbee.dev/api/v1/gateway/devices/69ed9e62b5cd3ce4c792ae3e/send-sms",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": "33a89932-1944-4e37-8c09-c58b18136575"
+      },
+      body: JSON.stringify({
+        recipients: [phone],
+        message: "CODE: " + code
+      })
+    }
+  );
 
   const text = await res.text();
-  console.log(text);
 
   if (!res.ok) {
     msg("SMS FAILED");
     return;
   }
 
-  msg("CODE SENT");
+  msg("Code sent");
   document.getElementById("verifyBox").classList.remove("hidden");
 }
 
@@ -206,8 +221,6 @@ async function verify() {
   const input = document.getElementById("code").value;
 
   if (input === code) {
-    msg("ACCESS GRANTED");
-
     saveSession(phone);
 
     await client.from("users").upsert([
@@ -215,19 +228,18 @@ async function verify() {
     ]);
 
     showDashboard(phone);
-
   } else {
-    msg("WRONG CODE");
+    msg("Wrong code");
   }
 }
 
 /* =========================
-   DASHBOARD
+   DASHBOARD SWITCH
 ========================= */
-function showDashboard(phone) {
-  document.getElementById("loginPage").classList.add("hidden");
-  document.getElementById("dashboard").classList.remove("hidden");
-  document.getElementById("userPhone").innerText = phone;
+function showDashboard(p) {
+  document.getElementById("loginPage").style.display = "none";
+  document.getElementById("dashboard").style.display = "flex";
+  document.getElementById("userPhone").innerText = p;
 }
 
 /* =========================
@@ -239,7 +251,7 @@ function logout() {
 }
 
 /* =========================
-   UI MSG
+   MSG
 ========================= */
 function msg(t) {
   document.getElementById("msg").innerText = t;
@@ -254,36 +266,29 @@ const ctx = canvas.getContext("2d");
 canvas.height = window.innerHeight;
 canvas.width = window.innerWidth;
 
-let letters = "01";
-letters = letters.split("");
+let chars = "01".split("");
+let fontSize = 14;
+let cols = canvas.width / fontSize;
 
-const fontSize = 14;
-const columns = canvas.width / fontSize;
-
-const drops = [];
-
-for (let x = 0; x < columns; x++)
-  drops[x] = 1;
+let drops = Array(Math.floor(cols)).fill(1);
 
 function draw() {
-  ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "rgba(0,0,0,0.05)";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
 
-  ctx.fillStyle = "#00ff88";
+  ctx.fillStyle = "#3b82f6";
   ctx.font = fontSize + "px monospace";
 
   for (let i = 0; i < drops.length; i++) {
-    const text = letters[Math.floor(Math.random() * letters.length)];
-    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+    let text = chars[Math.floor(Math.random()*chars.length)];
+    ctx.fillText(text, i*fontSize, drops[i]*fontSize);
 
-    if (drops[i] * fontSize > canvas.height || Math.random() > 0.95)
-      drops[i] = 0;
-
+    if (drops[i]*fontSize > canvas.height) drops[i] = 0;
     drops[i]++;
   }
 }
 
-setInterval(draw, 33);
+setInterval(draw, 30);
 </script>
 
 </body>
