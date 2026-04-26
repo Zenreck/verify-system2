@@ -64,7 +64,7 @@
 <div class="card">
   <h2>Login 😎</h2>
 
-  <input id="phone" placeholder="Phone number" />
+  <input id="phone" placeholder="Phone number (+1...)" />
 
   <button onclick="sendCode()">Send Code</button>
 
@@ -81,21 +81,21 @@
 
 <script>
 /* =========================
-   🔥 SUPABASE SETUP
+   🔐 SUPABASE SETUP
 ========================= */
 const supabaseUrl = "https://emookzuveekpfqbehcjs.supabase.co";
 const supabaseKey = "sb_publishable_XUZwKSJb_dsiYTkeEK79yw_lpCW5u9p";
 
-const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+const client = supabase.createClient(supabaseUrl, supabaseKey);
 
 /* =========================
-   📲 TEMP CODE STORAGE
+   📲 STATE
 ========================= */
 let generatedCode = "";
 let currentPhone = "";
 
 /* =========================
-   SEND CODE (TEXTBEE HOOK)
+   🚀 SEND SMS CODE (TEXTBEE)
 ========================= */
 async function sendCode() {
   const phone = document.getElementById("phone").value;
@@ -107,34 +107,48 @@ async function sendCode() {
 
   currentPhone = phone;
 
-  // generate code
+  // generate OTP
   generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-  console.log("SMS CODE:", generatedCode);
+  document.getElementById("msg").innerText = "📲 Sending SMS...";
 
-  // 💡 TEXTBEE PLACEHOLDER (real SMS goes here later)
-  /*
-  await fetch("TEXTBEE_API_URL", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      phone: phone,
-      message: "Your code is: " + generatedCode
-    })
-  });
-  */
+  try {
+    const res = await fetch("https://api.textbee.dev/sms/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer 33a89932-1944-4e37-8c09-c58b18136575"
+      },
+      body: JSON.stringify({
+        to: phone,
+        message: "Your login code is: " + generatedCode
+      })
+    });
 
-  document.getElementById("msg").innerText = "📲 Code sent!";
-  document.getElementById("verifyBox").classList.remove("hidden");
+    const data = await res.json();
+    console.log("SMS RESPONSE:", data);
 
-  // save user to Supabase
-  await supabase.from("users").upsert([
-    { phone: phone, verified: false }
-  ]);
+    if (!res.ok) {
+      document.getElementById("msg").innerText = "❌ SMS failed";
+      return;
+    }
+
+    document.getElementById("msg").innerText = "✅ Code sent!";
+    document.getElementById("verifyBox").classList.remove("hidden");
+
+    // store user in Supabase
+    await client.from("users").upsert([
+      { phone: phone, verified: false }
+    ]);
+
+  } catch (err) {
+    console.error(err);
+    document.getElementById("msg").innerText = "❌ Error sending SMS";
+  }
 }
 
 /* =========================
-   VERIFY CODE
+   🔐 VERIFY CODE
 ========================= */
 async function verify() {
   const code = document.getElementById("code").value;
@@ -143,16 +157,13 @@ async function verify() {
 
     document.getElementById("msg").innerText = "✅ Login success!";
 
-    // update database
-    await supabase
+    await client
       .from("users")
       .update({ verified: true })
       .eq("phone", currentPhone);
 
-    // redirect or unlock dashboard
     setTimeout(() => {
-      alert("Welcome to dashboard 😎");
-      // window.location.href = "dashboard.html";
+      alert("Welcome 😎 Dashboard unlocked!");
     }, 500);
 
   } else {
