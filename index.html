@@ -1,37 +1,109 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Verification System</title>
+  <title>Login System</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial;
+      background: #0f172a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      color: white;
+    }
+
+    .card {
+      background: #1e293b;
+      padding: 25px;
+      border-radius: 14px;
+      width: 320px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    }
+
+    input {
+      width: 90%;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 8px;
+      border: none;
+      outline: none;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 8px;
+      border: none;
+      border-radius: 8px;
+      background: #38bdf8;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button:hover {
+      background: #0ea5e9;
+    }
+
+    .msg {
+      margin-top: 10px;
+      font-size: 14px;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
 </head>
-<body style="font-family: Arial; text-align: center; margin-top: 100px;">
 
-<h1>Verification System 😎</h1>
+<body>
 
-<button onclick="generate()">Get Code</button>
+<div class="card">
+  <h2>Login 😎</h2>
 
-<p id="code"></p>
+  <input id="phone" placeholder="Phone / Username" />
 
-<input id="input" placeholder="Enter code" />
-<button onclick="check()">Verify</button>
+  <button onclick="sendCode()">Send Code</button>
 
-<p id="result"></p>
+  <div id="verifyBox" class="hidden">
+    <input id="code" placeholder="Enter code" />
+    <button onclick="verify()">Verify</button>
+  </div>
+
+  <p class="msg" id="msg"></p>
+</div>
 
 <script>
-let code = "";
+let generatedCode = "";
 
-function generate() {
-    code = Math.floor(100000 + Math.random() * 900000).toString();
-    document.getElementById("code").innerText = "Code: " + code;
+function sendCode() {
+  const phone = document.getElementById("phone").value;
+
+  if (!phone) {
+    document.getElementById("msg").innerText = "⚠️ Enter phone/username";
+    return;
+  }
+
+  // generate fake SMS code
+  generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+  console.log("SMS CODE:", generatedCode); // pretend SMS
+
+  document.getElementById("msg").innerText = "📲 Code sent!";
+  document.getElementById("verifyBox").classList.remove("hidden");
 }
 
-function check() {
-    const val = document.getElementById("input").value;
+function verify() {
+  const code = document.getElementById("code").value;
 
-    if (val === code) {
-        document.getElementById("result").innerText = "✅ Verified!";
-    } else {
-        document.getElementById("result").innerText = "❌ Wrong code";
-    }
+  if (code === generatedCode) {
+    document.getElementById("msg").innerText = "✅ Logged in successfully!";
+  } else {
+    document.getElementById("msg").innerText = "❌ Wrong code";
+  }
 }
 </script>
 
