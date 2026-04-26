@@ -1,8 +1,11 @@
 export default function handler(req, res) {
-    // If user is requesting HTML page
-    if (req.method === "GET" && !req.query.code) {
-        res.setHeader("Content-Type", "text/html");
-        return res.status(200).send(`
+    if (req.query.action === "generate") {
+        const code = Math.floor(100000 + Math.random() * 900000);
+        return res.status(200).json({ code });
+    }
+
+    res.setHeader("Content-Type", "text/html");
+    res.status(200).send(`
 <!DOCTYPE html>
 <html>
 <head>
@@ -24,14 +27,14 @@ export default function handler(req, res) {
             const res = await fetch("?action=generate");
             const data = await res.json();
             currentCode = data.code;
-            document.getElementById("output").innerText = "Code sent (check console 👀)";
             console.log("CODE:", currentCode);
+            document.getElementById("output").innerText = "Code generated (check console)";
         }
 
         function check() {
             const val = document.getElementById("input").value;
 
-            if (val === currentCode) {
+            if (val === currentCode.toString()) {
                 document.getElementById("output").innerText = "✅ Verified!";
             } else {
                 document.getElementById("output").innerText = "❌ Wrong code";
@@ -40,14 +43,5 @@ export default function handler(req, res) {
     </script>
 </body>
 </html>
-        `);
-    }
-
-    // Generate verification code
-    if (req.query.action === "generate") {
-        const code = Math.floor(100000 + Math.random() * 900000);
-        return res.status(200).json({ code });
-    }
-
-    return res.status(404).json({ error: "Not found" });
+    `);
 }
