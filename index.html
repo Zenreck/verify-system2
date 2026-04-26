@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Enterprise Auth System</title>
+  <title>SaaS Auth System</title>
 
   <style>
     body {
       margin: 0;
       font-family: Arial;
-      background: black;
+      background: #0a0a0a;
       overflow: hidden;
     }
 
@@ -28,13 +28,12 @@
 
     .card {
       background: rgba(30,30,30,0.92);
-      backdrop-filter: blur(12px);
       padding: 25px;
-      border-radius: 16px;
+      border-radius: 14px;
       width: 340px;
       color: white;
       text-align: center;
-      box-shadow: 0 0 30px rgba(0,0,0,0.6);
+      backdrop-filter: blur(10px);
     }
 
     input {
@@ -51,8 +50,8 @@
       width: 100%;
       padding: 10px;
       margin-top: 8px;
-      border-radius: 8px;
       border: none;
+      border-radius: 8px;
       background: #3b82f6;
       color: white;
       cursor: pointer;
@@ -86,18 +85,7 @@
       background: rgba(40,40,40,0.6);
       padding: 20px;
       border-radius: 12px;
-    }
-
-    .badge {
-      padding: 4px 8px;
-      background: #3b82f6;
-      border-radius: 6px;
-      font-size: 12px;
-    }
-
-    .logout {
-      background: #ef4444;
-      margin-top: 10px;
+      margin-bottom: 10px;
     }
 
     .hidden { display:none; }
@@ -111,15 +99,13 @@
 <!-- LOGIN -->
 <div id="login" class="login">
   <div class="card">
-    <h2>ENTERPRISE LOGIN</h2>
+    <h2>SAAS LOGIN</h2>
 
     <input id="phone" placeholder="Phone (+1...)" />
 
     <button onclick="sendCode()">Send Code</button>
 
-    <button class="admin" onclick="adminLogin()">
-      Admin Login
-    </button>
+    <button class="admin" onclick="adminLogin()">Admin Login</button>
 
     <div id="verifyBox" class="hidden">
       <input id="code" placeholder="Enter code" />
@@ -134,18 +120,22 @@
 <div id="app" class="app">
 
   <div class="sidebar">
-    <h3>Control Panel</h3>
+    <h3>Dashboard</h3>
 
-    <p>User: <span id="userPhone"></span></p>
-    <p>Role: <span id="roleBadge" class="badge"></span></p>
+    <p>Role: <span id="role"></span></p>
 
-    <button class="logout" onclick="logout()">Logout</button>
+    <button onclick="logout()" style="background:#ef4444;">Logout</button>
   </div>
 
   <div class="main">
     <div class="panel">
-      <h2>Dashboard</h2>
-      <p>Secure enterprise session active.</p>
+      <h2>User Profile</h2>
+      <p id="userPhone"></p>
+    </div>
+
+    <div class="panel" id="adminPanel" style="display:none;">
+      <h2>Analytics (Admin)</h2>
+      <p>IP + login tracking stored in Supabase</p>
     </div>
   </div>
 
@@ -154,58 +144,35 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
 <script>
-/* =========================
-   SUPABASE
-========================= */
 const supabaseUrl = "https://emookzuveekpfqbehcjs.supabase.co";
 const supabaseKey = "sb_publishable_XUZwKSJb_dsiYTkeEK79yw_lpCW5u9p";
 const client = supabase.createClient(supabaseUrl, supabaseKey);
 
-/* =========================
-   STATE
-========================= */
 let code = "";
 let phone = "";
+let role = "user";
 
 /* =========================
-   SESSION (ENTERPRISE STYLE)
+   IP FETCH (ANALYTICS)
 ========================= */
-function setSession(token) {
-  localStorage.setItem("session", token);
-}
-
-function getSession() {
-  return localStorage.getItem("session");
-}
-
-function clearSession() {
-  localStorage.removeItem("session");
+async function getIP() {
+  const res = await fetch("https://api.ipify.org?format=json");
+  const data = await res.json();
+  return data.ip;
 }
 
 /* =========================
-   ADMIN LOGIN
-========================= */
-function adminLogin() {
-  phone = "3502287887";
-  sendCode();
-}
-
-/* =========================
-   SEND OTP
+   SEND CODE
 ========================= */
 async function sendCode() {
-
-  if (!phone) {
-    phone = document.getElementById("phone").value;
-  }
-
+  phone = document.getElementById("phone").value;
   if (!phone) return msg("Enter phone");
 
   code = Math.floor(100000 + Math.random() * 900000).toString();
 
   msg("Sending...");
 
-  const res = await fetch(
+  await fetch(
     "https://api.textbee.dev/api/v1/gateway/devices/69ed9e62b5cd3ce4c792ae3e/send-sms",
     {
       method: "POST",
@@ -215,59 +182,71 @@ async function sendCode() {
       },
       body: JSON.stringify({
         recipients: [phone],
-        message: "ENTERPRISE CODE: " + code
+        message: "CODE: " + code
       })
     }
   );
-
-  if (!res.ok) return msg("SMS FAILED");
 
   document.getElementById("verifyBox").classList.remove("hidden");
   msg("Code sent");
 }
 
 /* =========================
-   VERIFY + ENTERPRISE SESSION
+   ADMIN LOGIN
 ========================= */
-async function verify() {
-  const input = document.getElementById("code").value;
-
-  if (input !== code) return msg("Wrong code");
-
-  const sessionToken = crypto.randomUUID();
-
-  const { data } = await client
-    .from("users")
-    .upsert({
-      phone,
-      verified: true,
-      role: phone === "3502287887" ? "admin" : "user",
-      session: sessionToken
-    })
-    .select();
-
-  setSession(sessionToken);
-
-  openApp(phone, phone === "3502287887" ? "admin" : "user");
+function adminLogin() {
+  phone = "3502287887";
+  role = "admin";
+  sendCode();
 }
 
 /* =========================
-   LOAD APP (VERIFY SESSION)
+   VERIFY
 ========================= */
-async function openApp(p, role) {
+async function verify() {
+  const input = document.getElementById("code").value;
+  if (input !== code) return msg("Wrong code");
 
+  const session = crypto.randomUUID();
+  const ip = await getIP();
+  const ua = navigator.userAgent;
+
+  await client.from("users").upsert({
+    phone,
+    role,
+    verified: true,
+    session
+  });
+
+  await client.from("analytics").insert({
+    phone,
+    ip,
+    user_agent: ua,
+    role
+  });
+
+  openApp();
+}
+
+/* =========================
+   OPEN APP
+========================= */
+function openApp() {
   document.getElementById("login").style.display = "none";
   document.getElementById("app").style.display = "block";
 
-  document.getElementById("userPhone").innerText = p;
-  document.getElementById("roleBadge").innerText = role.toUpperCase();
+  document.getElementById("userPhone").innerText = phone;
+  document.getElementById("role").innerText = role;
+
+  if (role === "admin") {
+    document.getElementById("adminPanel").style.display = "block";
+  }
 }
 
 /* =========================
    LOGOUT
 ========================= */
 function logout() {
-  clearSession();
   location.reload();
 }
 
@@ -287,9 +266,9 @@ const ctx = c.getContext("2d");
 c.width = window.innerWidth;
 c.height = window.innerHeight;
 
-let drops = Array(120).fill(1);
+let drops = Array(100).fill(1);
 
-function draw() {
+setInterval(() => {
   ctx.fillStyle = "rgba(0,0,0,0.05)";
   ctx.fillRect(0,0,c.width,c.height);
 
@@ -297,15 +276,11 @@ function draw() {
   ctx.font = "14px monospace";
 
   for (let i = 0; i < drops.length; i++) {
-    let text = Math.random() > 0.5 ? "0" : "1";
-    ctx.fillText(text, i*14, drops[i]*14);
-
+    ctx.fillText(Math.random() > 0.5 ? "0" : "1", i*14, drops[i]*14);
     if (drops[i]*14 > c.height) drops[i] = 0;
     drops[i]++;
   }
-}
-
-setInterval(draw, 30);
+}, 30);
 </script>
 
 </body>
