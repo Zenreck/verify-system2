@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>SaaS Auth System</title>
+  <title>SaaS Enterprise System</title>
 
   <style>
     body {
       margin: 0;
       font-family: Arial;
-      background: #0a0a0a;
+      background: black;
       overflow: hidden;
+      color: white;
     }
 
     canvas {
@@ -31,7 +32,6 @@
       padding: 25px;
       border-radius: 14px;
       width: 340px;
-      color: white;
       text-align: center;
       backdrop-filter: blur(10px);
     }
@@ -57,7 +57,7 @@
       cursor: pointer;
     }
 
-    .admin {
+    .adminBtn {
       background: #ef4444;
     }
 
@@ -65,7 +65,6 @@
     .app {
       display: none;
       height: 100vh;
-      color: white;
     }
 
     .sidebar {
@@ -83,9 +82,16 @@
 
     .panel {
       background: rgba(40,40,40,0.6);
-      padding: 20px;
+      padding: 15px;
       border-radius: 12px;
       margin-bottom: 10px;
+    }
+
+    .badge {
+      padding: 4px 8px;
+      background: #3b82f6;
+      border-radius: 6px;
+      font-size: 12px;
     }
 
     .hidden { display:none; }
@@ -105,7 +111,7 @@
 
     <button onclick="sendCode()">Send Code</button>
 
-    <button class="admin" onclick="adminLogin()">Admin Login</button>
+    <button class="adminBtn" onclick="adminLogin()">Admin Login</button>
 
     <div id="verifyBox" class="hidden">
       <input id="code" placeholder="Enter code" />
@@ -122,38 +128,71 @@
   <div class="sidebar">
     <h3>Dashboard</h3>
 
+    <p>User: <span id="userPhone"></span></p>
     <p>Role: <span id="role"></span></p>
 
     <button onclick="logout()" style="background:#ef4444;">Logout</button>
   </div>
 
   <div class="main">
+
+    <!-- USER PANEL -->
     <div class="panel">
       <h2>User Profile</h2>
-      <p id="userPhone"></p>
+      <p>Status: Active</p>
     </div>
 
-    <div class="panel" id="adminPanel" style="display:none;">
-      <h2>Analytics (Admin)</h2>
-      <p>IP + login tracking stored in Supabase</p>
+    <!-- ANALYTICS PANEL -->
+    <div id="analyticsPanel" class="panel hidden">
+      <h2>📊 Analytics Dashboard</h2>
+
+      <p><b>Total Logs:</b> <span id="total">0</span></p>
+      <p><b>Unique Users:</b> <span id="unique">0</span></p>
+      <p><b>Admin Logins:</b> <span id="admins">0</span></p>
+
+      <div class="panel">
+        <h3>Recent Activity</h3>
+        <div id="activity"></div>
+      </div>
     </div>
+
   </div>
-
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
 <script>
+/* =========================
+   SUPABASE
+========================= */
 const supabaseUrl = "https://emookzuveekpfqbehcjs.supabase.co";
 const supabaseKey = "sb_publishable_XUZwKSJb_dsiYTkeEK79yw_lpCW5u9p";
 const client = supabase.createClient(supabaseUrl, supabaseKey);
 
+/* =========================
+   STATE
+========================= */
 let code = "";
 let phone = "";
 let role = "user";
 
 /* =========================
-   IP FETCH (ANALYTICS)
+   SESSION
+========================= */
+function setSession(data) {
+  localStorage.setItem("session", JSON.stringify(data));
+}
+
+function getSession() {
+  return JSON.parse(localStorage.getItem("session"));
+}
+
+function clearSession() {
+  localStorage.removeItem("session");
+}
+
+/* =========================
+   IP FETCH
 ========================= */
 async function getIP() {
   const res = await fetch("https://api.ipify.org?format=json");
@@ -165,7 +204,11 @@ async function getIP() {
    SEND CODE
 ========================= */
 async function sendCode() {
-  phone = document.getElementById("phone").value;
+
+  if (!phone) {
+    phone = document.getElementById("phone").value;
+  }
+
   if (!phone) return msg("Enter phone");
 
   code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -201,15 +244,18 @@ function adminLogin() {
 }
 
 /* =========================
-   VERIFY
+   VERIFY + ANALYTICS LOG
 ========================= */
 async function verify() {
   const input = document.getElementById("code").value;
+
   if (input !== code) return msg("Wrong code");
 
   const session = crypto.randomUUID();
   const ip = await getIP();
   const ua = navigator.userAgent;
+
+  setSession({ phone, role, session });
 
   await client.from("users").upsert({
     phone,
@@ -236,17 +282,55 @@ function openApp() {
   document.getElementById("app").style.display = "block";
 
   document.getElementById("userPhone").innerText = phone;
-  document.getElementById("role").innerText = role;
+  document.getElementById("role").innerText = role.toUpperCase();
 
   if (role === "admin") {
-    document.getElementById("adminPanel").style.display = "block";
+    document.getElementById("analyticsPanel").classList.remove("hidden");
+    loadAnalytics();
   }
+}
+
+/* =========================
+   LOAD ANALYTICS (ADMIN)
+========================= */
+async function loadAnalytics() {
+  const { data } = await client
+    .from("analytics")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  document.getElementById("total").innerText = data.length;
+
+  const unique = new Set(data.map(d => d.phone));
+  document.getElementById("unique").innerText = unique.size;
+
+  const admins = data.filter(d => d.role === "admin");
+  document.getElementById("admins").innerText = admins.length;
+
+  const list = document.getElementById("activity");
+  list.innerHTML = "";
+
+  data.slice(0, 10).forEach(d => {
+    const div = document.createElement("div");
+    div.style.padding = "6px";
+    div.style.borderBottom = "1px solid #333";
+
+    div.innerHTML = `
+      📱 ${d.phone}<br>
+      🌍 ${d.ip}<br>
+      🧠 ${d.role}<br>
+      ⏰ ${new Date(d.created_at).toLocaleString()}
+    `;
+
+    list.appendChild(div);
+  });
 }
 
 /* =========================
    LOGOUT
 ========================= */
 function logout() {
+  clearSession();
   location.reload();
 }
 
@@ -277,6 +361,7 @@ setInterval(() => {
 
   for (let i = 0; i < drops.length; i++) {
     ctx.fillText(Math.random() > 0.5 ? "0" : "1", i*14, drops[i]*14);
+
     if (drops[i]*14 > c.height) drops[i] = 0;
     drops[i]++;
   }
