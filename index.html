@@ -64,7 +64,7 @@
 <div class="card">
   <h2>Login 😎</h2>
 
-  <input id="phone" placeholder="Phone / Username" />
+  <input id="phone" placeholder="Phone number" />
 
   <button onclick="sendCode()">Send Code</button>
 
@@ -76,31 +76,85 @@
   <p class="msg" id="msg"></p>
 </div>
 
-<script>
-let generatedCode = "";
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
-function sendCode() {
+<script>
+/* =========================
+   🔥 SUPABASE SETUP
+========================= */
+const supabaseUrl = "https://emookzuveekpfqbehcjs.supabase.co";
+const supabaseKey = "sb_publishable_XUZwKSJb_dsiYTkeEK79yw_lpCW5u9p";
+
+const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+/* =========================
+   📲 TEMP CODE STORAGE
+========================= */
+let generatedCode = "";
+let currentPhone = "";
+
+/* =========================
+   SEND CODE (TEXTBEE HOOK)
+========================= */
+async function sendCode() {
   const phone = document.getElementById("phone").value;
 
   if (!phone) {
-    document.getElementById("msg").innerText = "⚠️ Enter phone/username";
+    document.getElementById("msg").innerText = "⚠️ Enter phone number";
     return;
   }
 
-  // generate fake SMS code
+  currentPhone = phone;
+
+  // generate code
   generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-  console.log("SMS CODE:", generatedCode); // pretend SMS
+  console.log("SMS CODE:", generatedCode);
+
+  // 💡 TEXTBEE PLACEHOLDER (real SMS goes here later)
+  /*
+  await fetch("TEXTBEE_API_URL", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      phone: phone,
+      message: "Your code is: " + generatedCode
+    })
+  });
+  */
 
   document.getElementById("msg").innerText = "📲 Code sent!";
   document.getElementById("verifyBox").classList.remove("hidden");
+
+  // save user to Supabase
+  await supabase.from("users").upsert([
+    { phone: phone, verified: false }
+  ]);
 }
 
-function verify() {
+/* =========================
+   VERIFY CODE
+========================= */
+async function verify() {
   const code = document.getElementById("code").value;
 
   if (code === generatedCode) {
-    document.getElementById("msg").innerText = "✅ Logged in successfully!";
+
+    document.getElementById("msg").innerText = "✅ Login success!";
+
+    // update database
+    await supabase
+      .from("users")
+      .update({ verified: true })
+      .eq("phone", currentPhone);
+
+    // redirect or unlock dashboard
+    setTimeout(() => {
+      alert("Welcome to dashboard 😎");
+      // window.location.href = "dashboard.html";
+    }, 500);
+
   } else {
     document.getElementById("msg").innerText = "❌ Wrong code";
   }
