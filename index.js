@@ -1,16 +1,27 @@
 import random
+import tkinter as tk
 
-print("🔥 Verification System")
-
-# generate code
 code = str(random.randint(100000, 999999))
 
-print("Your code is:", code)
+def check():
+    if entry.get() == code:
+        result.config(text="✅ Verified!")
+    else:
+        result.config(text="❌ Wrong code")
 
-# user input
-user = input("Enter code: ")
+app = tk.Tk()
+app.title("Verification System")
 
-if user == code:
-    print("✅ Verified!")
-else:
-    print("❌ Wrong code")
+label = tk.Label(app, text=f"Your code: {code}")
+label.pack()
+
+entry = tk.Entry(app)
+entry.pack()
+
+button = tk.Button(app, text="Verify", command=check)
+button.pack()
+
+result = tk.Label(app, text="")
+result.pack()
+
+app.mainloop()
