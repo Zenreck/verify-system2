@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>SaaS Chat System</title>
+  <title>SaaS Support System</title>
 
   <style>
     body {
@@ -19,7 +19,6 @@
       z-index: -1;
     }
 
-    /* LOGIN */
     .login {
       display: flex;
       justify-content: center;
@@ -28,7 +27,7 @@
     }
 
     .card {
-      background: rgba(30,30,30,0.92);
+      background: rgba(30,30,30,0.9);
       padding: 20px;
       border-radius: 14px;
       width: 340px;
@@ -61,7 +60,6 @@
       background: #ef4444;
     }
 
-    /* APP */
     .app {
       display: none;
       height: 100vh;
@@ -87,9 +85,7 @@
       margin-bottom: 10px;
     }
 
-    .hidden { display:none; }
-
-    #chatBox, #adminChat {
+    #chatBox, #adminChat, #guestChat {
       height: 150px;
       overflow-y: auto;
       background: #111;
@@ -97,6 +93,8 @@
       border-radius: 8px;
       font-size: 14px;
     }
+
+    .hidden { display:none; }
   </style>
 </head>
 
@@ -107,12 +105,12 @@
 <!-- LOGIN -->
 <div id="login" class="login">
   <div class="card">
+
     <h2>SAAS LOGIN</h2>
 
     <input id="phone" placeholder="Phone number" />
 
     <button onclick="sendCode()">Send Code</button>
-
     <button class="adminBtn" onclick="adminLogin()">Admin Login</button>
 
     <div id="verifyBox" class="hidden">
@@ -121,6 +119,17 @@
     </div>
 
     <p id="msg"></p>
+
+    <!-- 💬 GUEST SUPPORT CHAT -->
+    <div class="panel">
+      <h3>💬 Support Chat</h3>
+
+      <div id="guestChat"></div>
+
+      <input id="guestMsg" placeholder="Ask support..." />
+      <button onclick="sendGuestMsg()">Send</button>
+    </div>
+
   </div>
 </div>
 
@@ -130,8 +139,8 @@
   <div class="sidebar">
     <h3>Dashboard</h3>
 
-    <p><b>User:</b> <span id="userPhone"></span></p>
-    <p><b>Role:</b> <span id="role"></span></p>
+    <p>User: <span id="userPhone"></span></p>
+    <p>Role: <span id="role"></span></p>
 
     <button onclick="logout()" style="background:#ef4444;">Logout</button>
   </div>
@@ -140,7 +149,8 @@
 
     <!-- USER CHAT -->
     <div class="panel">
-      <h3>💬 Support Chat</h3>
+      <h3>💬 Your Support Chat</h3>
+
       <div id="chatBox"></div>
 
       <input id="chatInput" placeholder="Message admin..." />
@@ -165,9 +175,13 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
 <script>
-const supabaseUrl = "https://emookzuveekpfqbehcjs.supabase.co";
-const supabaseKey = "sb_publishable_XUZwKSJb_dsiYTkeEK79yw_lpCW5u9p";
-const client = supabase.createClient(supabaseUrl, supabaseKey);
+/* =========================
+   SUPABASE
+========================= */
+const client = supabase.createClient(
+  "https://emookzuveekpfqbehcjs.supabase.co",
+  "sb_publishable_XUZwKSJb_dsiYTkeEK79yw_lpCW5u9p"
+);
 
 /* =========================
    STATE
@@ -178,7 +192,7 @@ let code = "";
 let activeUser = null;
 
 /* =========================
-   LOGIN SYSTEM
+   LOGIN
 ========================= */
 function adminLogin() {
   phone = "3502287887";
@@ -188,7 +202,6 @@ function adminLogin() {
 
 async function sendCode() {
   phone = document.getElementById("phone").value || phone;
-
   if (!phone) return msg("Enter phone");
 
   code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -213,10 +226,10 @@ async function sendCode() {
 }
 
 async function verify() {
-  const input = document.getElementById("code").value;
-  if (input !== code) return msg("Wrong code");
+  if (document.getElementById("code").value !== code)
+    return msg("Wrong code");
 
-  const { data } = await client.from("users").upsert({
+  await client.from("users").upsert({
     phone,
     role,
     verified: true
@@ -240,11 +253,11 @@ function openApp() {
     loadUsers();
   }
 
-  loadChat();
+  loadChat(); // 🔥 FIXED
 }
 
 /* =========================
-   CHAT SYSTEM (USER)
+   USER CHAT
 ========================= */
 async function sendMessage() {
   const msg = document.getElementById("chatInput").value;
@@ -276,7 +289,39 @@ async function loadChat() {
 }
 
 /* =========================
-   ADMIN CHAT SYSTEM
+   GUEST CHAT (LOGIN PAGE)
+========================= */
+async function sendGuestMsg() {
+  const msg = document.getElementById("guestMsg").value;
+  if (!msg) return;
+
+  await client.from("messages").insert({
+    phone: phone || "guest",
+    sender: "guest",
+    message: msg
+  });
+
+  document.getElementById("guestMsg").value = "";
+  loadGuestChat();
+}
+
+async function loadGuestChat() {
+  const { data } = await client
+    .from("messages")
+    .select("*")
+    .eq("phone", phone || "guest")
+    .order("created_at", { ascending: true });
+
+  const box = document.getElementById("guestChat");
+  box.innerHTML = "";
+
+  data.forEach(m => {
+    box.innerHTML += `<div><b>${m.sender}:</b> ${m.message}</div>`;
+  });
+}
+
+/* =========================
+   ADMIN CHAT
 ========================= */
 async function loadUsers() {
   const { data } = await client.from("messages").select("phone");
@@ -287,10 +332,10 @@ async function loadUsers() {
   list.innerHTML = "<h4>Users</h4>";
 
   unique.forEach(p => {
-    const btn = document.createElement("button");
-    btn.innerText = p;
-    btn.onclick = () => openAdminChat(p);
-    list.appendChild(btn);
+    const b = document.createElement("button");
+    b.innerText = p;
+    b.onclick = () => openAdminChat(p);
+    list.appendChild(b);
   });
 }
 
@@ -326,6 +371,15 @@ async function sendAdminMessage() {
 }
 
 /* =========================
+   AUTO REFRESH FIX
+========================= */
+setInterval(() => {
+  if (phone) loadChat();
+  if (role === "admin" && activeUser) openAdminChat(activeUser);
+  loadGuestChat();
+}, 3000);
+
+/* =========================
    LOGOUT
 ========================= */
 function logout() {
@@ -341,7 +395,6 @@ function msg(t) {
 ========================= */
 const c = document.getElementById("matrix");
 const ctx = c.getContext("2d");
-
 c.width = window.innerWidth;
 c.height = window.innerHeight;
 
