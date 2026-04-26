@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Pro Auth System</title>
+  <title>Enterprise Auth System</title>
 
   <style>
     body {
       margin: 0;
       font-family: Arial;
-      background: #0a0a0a;
+      background: black;
       overflow: hidden;
     }
 
@@ -19,7 +19,7 @@
     }
 
     /* LOGIN */
-    .loginWrap {
+    .login {
       display: flex;
       justify-content: center;
       align-items: center;
@@ -27,14 +27,14 @@
     }
 
     .card {
-      background: rgba(30,30,30,0.9);
+      background: rgba(30,30,30,0.92);
       backdrop-filter: blur(12px);
       padding: 25px;
       border-radius: 16px;
       width: 340px;
       color: white;
       text-align: center;
-      box-shadow: 0 0 25px rgba(0,0,0,0.6);
+      box-shadow: 0 0 30px rgba(0,0,0,0.6);
     }
 
     input {
@@ -43,7 +43,6 @@
       margin: 8px 0;
       border-radius: 8px;
       border: none;
-      outline: none;
       background: #111;
       color: white;
     }
@@ -54,16 +53,16 @@
       margin-top: 8px;
       border-radius: 8px;
       border: none;
-      cursor: pointer;
       background: #3b82f6;
       color: white;
+      cursor: pointer;
     }
 
-    .adminBtn {
+    .admin {
       background: #ef4444;
     }
 
-    /* DASHBOARD */
+    /* APP */
     .app {
       display: none;
       height: 100vh;
@@ -71,15 +70,15 @@
     }
 
     .sidebar {
-      width: 220px;
-      background: rgba(20,20,20,0.9);
+      width: 240px;
       height: 100vh;
       position: fixed;
+      background: rgba(20,20,20,0.9);
       padding: 15px;
     }
 
     .main {
-      margin-left: 220px;
+      margin-left: 240px;
       padding: 20px;
     }
 
@@ -87,6 +86,13 @@
       background: rgba(40,40,40,0.6);
       padding: 20px;
       border-radius: 12px;
+    }
+
+    .badge {
+      padding: 4px 8px;
+      background: #3b82f6;
+      border-radius: 6px;
+      font-size: 12px;
     }
 
     .logout {
@@ -103,16 +109,16 @@
 <canvas id="matrix"></canvas>
 
 <!-- LOGIN -->
-<div id="login" class="loginWrap">
+<div id="login" class="login">
   <div class="card">
-    <h2>PRO LOGIN</h2>
+    <h2>ENTERPRISE LOGIN</h2>
 
     <input id="phone" placeholder="Phone (+1...)" />
 
     <button onclick="sendCode()">Send Code</button>
 
-    <button class="adminBtn" onclick="adminLogin()">
-      Sign in as Admin
+    <button class="admin" onclick="adminLogin()">
+      Admin Login
     </button>
 
     <div id="verifyBox" class="hidden">
@@ -124,20 +130,22 @@
   </div>
 </div>
 
-<!-- DASHBOARD -->
+<!-- APP -->
 <div id="app" class="app">
 
   <div class="sidebar">
-    <h3>Dashboard</h3>
-    <p id="roleText">User</p>
+    <h3>Control Panel</h3>
+
+    <p>User: <span id="userPhone"></span></p>
+    <p>Role: <span id="roleBadge" class="badge"></span></p>
+
     <button class="logout" onclick="logout()">Logout</button>
   </div>
 
   <div class="main">
     <div class="panel">
-      <h2>Welcome</h2>
-      <p><b>Phone:</b> <span id="userPhone"></span></p>
-      <p><b>Status:</b> Logged in</p>
+      <h2>Dashboard</h2>
+      <p>Secure enterprise session active.</p>
     </div>
   </div>
 
@@ -158,17 +166,16 @@ const client = supabase.createClient(supabaseUrl, supabaseKey);
 ========================= */
 let code = "";
 let phone = "";
-let role = "user";
 
 /* =========================
-   SESSION (PRO STYLE)
+   SESSION (ENTERPRISE STYLE)
 ========================= */
-function setSession(data) {
-  localStorage.setItem("session", JSON.stringify(data));
+function setSession(token) {
+  localStorage.setItem("session", token);
 }
 
 function getSession() {
-  return JSON.parse(localStorage.getItem("session"));
+  return localStorage.getItem("session");
 }
 
 function clearSession() {
@@ -176,32 +183,20 @@ function clearSession() {
 }
 
 /* =========================
-   AUTO LOGIN
-========================= */
-window.onload = () => {
-  const s = getSession();
-  if (s) {
-    openApp(s.phone, s.role);
-  }
-};
-
-/* =========================
    ADMIN LOGIN
 ========================= */
 function adminLogin() {
   phone = "3502287887";
-  role = "admin";
   sendCode();
 }
 
 /* =========================
-   SEND CODE
+   SEND OTP
 ========================= */
 async function sendCode() {
 
   if (!phone) {
     phone = document.getElementById("phone").value;
-    role = "user";
   }
 
   if (!phone) return msg("Enter phone");
@@ -220,13 +215,10 @@ async function sendCode() {
       },
       body: JSON.stringify({
         recipients: [phone],
-        message: "CODE: " + code
+        message: "ENTERPRISE CODE: " + code
       })
     }
   );
-
-  const text = await res.text();
-  console.log(text);
 
   if (!res.ok) return msg("SMS FAILED");
 
@@ -235,35 +227,40 @@ async function sendCode() {
 }
 
 /* =========================
-   VERIFY
+   VERIFY + ENTERPRISE SESSION
 ========================= */
 async function verify() {
   const input = document.getElementById("code").value;
 
-  if (input === code) {
+  if (input !== code) return msg("Wrong code");
 
-    setSession({ phone, role });
+  const sessionToken = crypto.randomUUID();
 
-    await client.from("users").upsert([
-      { phone, verified: true, role }
-    ]);
+  const { data } = await client
+    .from("users")
+    .upsert({
+      phone,
+      verified: true,
+      role: phone === "3502287887" ? "admin" : "user",
+      session: sessionToken
+    })
+    .select();
 
-    openApp(phone, role);
+  setSession(sessionToken);
 
-  } else {
-    msg("Wrong code");
-  }
+  openApp(phone, phone === "3502287887" ? "admin" : "user");
 }
 
 /* =========================
-   OPEN APP
+   LOAD APP (VERIFY SESSION)
 ========================= */
-function openApp(p, r) {
+async function openApp(p, role) {
+
   document.getElementById("login").style.display = "none";
   document.getElementById("app").style.display = "block";
 
   document.getElementById("userPhone").innerText = p;
-  document.getElementById("roleText").innerText = r.toUpperCase();
+  document.getElementById("roleBadge").innerText = role.toUpperCase();
 }
 
 /* =========================
@@ -282,29 +279,28 @@ function msg(t) {
 }
 
 /* =========================
-   MATRIX BACKGROUND
+   MATRIX
 ========================= */
-const canvas = document.getElementById("matrix");
-const ctx = canvas.getContext("2d");
+const c = document.getElementById("matrix");
+const ctx = c.getContext("2d");
 
-canvas.height = window.innerHeight;
-canvas.width = window.innerWidth;
+c.width = window.innerWidth;
+c.height = window.innerHeight;
 
-let chars = "01".split("");
-let drops = Array(100).fill(1);
+let drops = Array(120).fill(1);
 
 function draw() {
   ctx.fillStyle = "rgba(0,0,0,0.05)";
-  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillRect(0,0,c.width,c.height);
 
   ctx.fillStyle = "#3b82f6";
   ctx.font = "14px monospace";
 
   for (let i = 0; i < drops.length; i++) {
-    let text = chars[Math.floor(Math.random()*chars.length)];
+    let text = Math.random() > 0.5 ? "0" : "1";
     ctx.fillText(text, i*14, drops[i]*14);
 
-    if (drops[i]*14 > canvas.height) drops[i] = 0;
+    if (drops[i]*14 > c.height) drops[i] = 0;
     drops[i]++;
   }
 }
