@@ -1,35 +1,48 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Login System</title>
+  <title>Secure Login System</title>
 
   <style>
     body {
       margin: 0;
-      font-family: Arial;
-      background: #0f172a;
+      font-family: monospace;
+      color: #00ff88;
+      background: black;
+      overflow: hidden;
+    }
+
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: -1;
+    }
+
+    .center {
       display: flex;
       justify-content: center;
       align-items: center;
       height: 100vh;
-      color: white;
     }
 
     .card {
-      background: #1e293b;
+      background: rgba(0,0,0,0.8);
+      border: 1px solid #00ff88;
       padding: 25px;
-      border-radius: 14px;
+      border-radius: 10px;
       width: 320px;
       text-align: center;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+      box-shadow: 0 0 20px #00ff88;
     }
 
     input {
       width: 90%;
       padding: 10px;
       margin: 8px 0;
-      border-radius: 8px;
-      border: none;
+      background: black;
+      border: 1px solid #00ff88;
+      color: #00ff88;
       outline: none;
     }
 
@@ -37,141 +50,240 @@
       width: 100%;
       padding: 10px;
       margin-top: 8px;
-      border: none;
-      border-radius: 8px;
-      background: #38bdf8;
+      background: black;
+      border: 1px solid #00ff88;
+      color: #00ff88;
       cursor: pointer;
-      font-weight: bold;
     }
 
     button:hover {
-      background: #0ea5e9;
+      background: #00ff88;
+      color: black;
     }
 
-    .msg {
+    .hidden { display: none; }
+
+    .glitch {
+      font-size: 18px;
+      animation: flicker 1s infinite;
+    }
+
+    @keyframes flicker {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .dash {
+      padding: 20px;
+    }
+
+    .profile {
+      border: 1px solid #00ff88;
+      padding: 15px;
       margin-top: 10px;
-      font-size: 14px;
-      word-wrap: break-word;
-    }
-
-    .hidden {
-      display: none;
     }
   </style>
 </head>
 
 <body>
 
-<div class="card">
-  <h2>Login 😎</h2>
+<canvas id="matrix"></canvas>
 
-  <input id="phone" placeholder="Phone number (+1...)" />
+<!-- LOGIN -->
+<div id="loginPage" class="center">
+  <div class="card">
+    <div class="glitch">SYSTEM LOGIN</div>
 
-  <button onclick="sendCode()">Send Code</button>
+    <input id="phone" placeholder="Phone (+1...)" />
 
-  <div id="verifyBox" class="hidden">
-    <input id="code" placeholder="Enter code" />
-    <button onclick="verify()">Verify</button>
+    <button onclick="sendCode()">SEND CODE</button>
+
+    <div id="verifyBox" class="hidden">
+      <input id="code" placeholder="ENTER CODE" />
+      <button onclick="verify()">VERIFY</button>
+    </div>
+
+    <p id="msg"></p>
   </div>
-
-  <p class="msg" id="msg"></p>
 </div>
 
-<!-- Supabase -->
+<!-- DASHBOARD -->
+<div id="dashboard" class="hidden dash">
+  <h2>WELCOME USER</h2>
+
+  <div class="profile">
+    <p><b>Phone:</b> <span id="userPhone"></span></p>
+    <p><b>Status:</b> VERIFIED</p>
+  </div>
+
+  <button onclick="logout()">LOGOUT</button>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
 <script>
 /* =========================
-   🔐 SUPABASE
+   SUPABASE
 ========================= */
 const supabaseUrl = "https://emookzuveekpfqbehcjs.supabase.co";
 const supabaseKey = "sb_publishable_XUZwKSJb_dsiYTkeEK79yw_lpCW5u9p";
-
 const client = supabase.createClient(supabaseUrl, supabaseKey);
 
 /* =========================
-   📲 STATE
+   STATE
 ========================= */
-let generatedCode = "";
-let currentPhone = "";
+let code = "";
+let phone = "";
 
 /* =========================
-   🚀 SEND SMS (TEXTBEE FIXED REAL API)
+   SESSION (PERSIST LOGIN)
+========================= */
+function saveSession(phone) {
+  localStorage.setItem("session_phone", phone);
+}
+
+function loadSession() {
+  return localStorage.getItem("session_phone");
+}
+
+function clearSession() {
+  localStorage.removeItem("session_phone");
+}
+
+/* =========================
+   LOGIN CHECK ON LOAD
+========================= */
+window.onload = () => {
+  const saved = loadSession();
+  if (saved) {
+    showDashboard(saved);
+  }
+};
+
+/* =========================
+   SEND SMS
 ========================= */
 async function sendCode() {
-  const phone = document.getElementById("phone").value;
+  phone = document.getElementById("phone").value;
 
   if (!phone) {
-    document.getElementById("msg").innerText = "⚠️ Enter phone number";
+    msg("ENTER PHONE");
     return;
   }
 
-  currentPhone = phone;
+  code = Math.floor(100000 + Math.random() * 900000).toString();
 
-  generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
+  msg("SENDING CODE...");
 
-  document.getElementById("msg").innerText = "📲 Sending SMS...";
+  const res = await fetch("https://api.textbee.dev/api/v1/gateway/devices/69ed9e62b5cd3ce4c792ae3e/send-sms", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": "33a89932-1944-4e37-8c09-c58b18136575"
+    },
+    body: JSON.stringify({
+      recipients: [phone],
+      message: "CODE: " + code
+    })
+  });
 
-  try {
-    const res = await fetch(
-      "https://api.textbee.dev/api/v1/gateway/devices/69ed9e62b5cd3ce4c792ae3e/send-sms",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": "33a89932-1944-4e37-8c09-c58b18136575"
-        },
-        body: JSON.stringify({
-          recipients: [phone],
-          message: "Your login code is: " + generatedCode
-        })
-      }
-    );
+  const text = await res.text();
+  console.log(text);
 
-    const text = await res.text();
-    console.log("TEXTBEE RESPONSE:", text);
+  if (!res.ok) {
+    msg("SMS FAILED");
+    return;
+  }
 
-    if (!res.ok) {
-      document.getElementById("msg").innerText = "❌ SMS failed: " + text;
-      return;
-    }
+  msg("CODE SENT");
+  document.getElementById("verifyBox").classList.remove("hidden");
+}
 
-    document.getElementById("msg").innerText = "✅ Code sent!";
-    document.getElementById("verifyBox").classList.remove("hidden");
+/* =========================
+   VERIFY
+========================= */
+async function verify() {
+  const input = document.getElementById("code").value;
+
+  if (input === code) {
+    msg("ACCESS GRANTED");
+
+    saveSession(phone);
 
     await client.from("users").upsert([
-      { phone: phone, verified: false }
+      { phone: phone, verified: true }
     ]);
 
-  } catch (err) {
-    console.error(err);
-    document.getElementById("msg").innerText = "❌ Network error";
+    showDashboard(phone);
+
+  } else {
+    msg("WRONG CODE");
   }
 }
 
 /* =========================
-   🔐 VERIFY CODE
+   DASHBOARD
 ========================= */
-async function verify() {
-  const code = document.getElementById("code").value;
+function showDashboard(phone) {
+  document.getElementById("loginPage").classList.add("hidden");
+  document.getElementById("dashboard").classList.remove("hidden");
+  document.getElementById("userPhone").innerText = phone;
+}
 
-  if (code === generatedCode) {
+/* =========================
+   LOGOUT
+========================= */
+function logout() {
+  clearSession();
+  location.reload();
+}
 
-    document.getElementById("msg").innerText = "✅ Login success!";
+/* =========================
+   UI MSG
+========================= */
+function msg(t) {
+  document.getElementById("msg").innerText = t;
+}
 
-    await client
-      .from("users")
-      .update({ verified: true })
-      .eq("phone", currentPhone);
+/* =========================
+   MATRIX BACKGROUND
+========================= */
+const canvas = document.getElementById("matrix");
+const ctx = canvas.getContext("2d");
 
-    setTimeout(() => {
-      alert("🎉 Dashboard unlocked!");
-    }, 500);
+canvas.height = window.innerHeight;
+canvas.width = window.innerWidth;
 
-  } else {
-    document.getElementById("msg").innerText = "❌ Wrong code";
+let letters = "01";
+letters = letters.split("");
+
+const fontSize = 14;
+const columns = canvas.width / fontSize;
+
+const drops = [];
+
+for (let x = 0; x < columns; x++)
+  drops[x] = 1;
+
+function draw() {
+  ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "#00ff88";
+  ctx.font = fontSize + "px monospace";
+
+  for (let i = 0; i < drops.length; i++) {
+    const text = letters[Math.floor(Math.random() * letters.length)];
+    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+    if (drops[i] * fontSize > canvas.height || Math.random() > 0.95)
+      drops[i] = 0;
+
+    drops[i]++;
   }
 }
+
+setInterval(draw, 33);
 </script>
 
 </body>
